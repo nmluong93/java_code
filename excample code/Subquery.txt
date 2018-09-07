@@ -1,0 +1,18 @@
+public List<Product> findForPurchaseCustomerPremium() {
+    // main query on products
+    CriteriaQuery<Product> query = em.getCriteriaBuilder().createQuery(Product.class);
+    Root<Product> from = query.from(Product.class);
+    
+    // subquery on product ids
+    Subquery<Long> subQuery = query.subquery(Long.class);
+    Root<Customer> subFrom = subQuery.from(Customer.class);
+    ListJoin<Customer, Purchase> joinPurchase = subFrom.join(Customer_.purchases);
+    ListJoin<Purchase, Product> joinProduct = joinPurchase.join(Purchase_.products);
+    // Explicitly add to SELECT clause; otherwise, throws Error Code: 30000 SQLSyntaxErrorException
+    subQuery.select(joinProduct.get(Product_.id)).distinct(true);
+    subQuery.where(em.getCriteriaBuilder().equal(subFrom.get(Customer_.premium), true));
+    
+    query.select(from);
+    query.where(em.getCriteriaBuilder().in(from.get(Product_.id)).value(subQuery));
+    return em.createQuery(query).getResultList();
+}
